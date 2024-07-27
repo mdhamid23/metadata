@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: MIT
+// Compatible with OpenZeppelin Contracts ^5.0.0
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+
+contract WillContract is ERC1155, Ownable, ERC1155Supply {
+    struct Will {
+        string name;
+        string birthDate;
+        string deathDate;
+        string nid;
+        string willInfo;
+        bool lifeStatus;
+        address[] beneficiaryIds;
+    }
+
+    struct Receiver {
+        string nid;
+        string fatherNid;
+    }
+
+    mapping(address => Will) public willOwners;
+    mapping(address => Receiver) public willReceivers;
+    address[] public allWillOwners;
+
+    event WillCreated(address indexed owner, string nid, string name);
+    event WillUpdated(address indexed owner, string nid, bool lifeStatus, string deathDate);
+    event ReceiverRegistered(address indexed receiver, string nid, string fatherNid);
+
+    constructor(address initialOwner) ERC1155("https://mdhamid23.github.io/metadata/warish.json") Ownable(initialOwner) {}
+
+    function setURI(string memory newuri) public onlyOwner {
+        _setURI(newuri);
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values)
+        internal
+        override(ERC1155, ERC1155Supply)
+    {
+        super._update(from, to, ids, values);
+    }
+
+    function createWill(
+        string memory _name,
+        string memory _birthDate,
+        string memory _nid,
+        string memory _willInfo,
+        address[] memory _beneficiaryIds
+    ) public {
+        require(bytes(_name).length > 0, "Name is required");
+        require(bytes(_birthDate).length > 0, "Birth date is required");
+        require(bytes(_nid).length > 0, "NID is required");
+        require(bytes(_willInfo).length > 0, "Will info is required");
+        require(_beneficiaryIds.length > 0, "At least one beneficiary is required");
+
+        Will storage newWill = willOwners[msg.sender];
+        newWill.name = _name;
+        newWill.birthDate = _birthDate;
+        newWill.nid = _nid;
+        newWill.willInfo = _willInfo;
+        newWill.lifeStatus = true;
+        newWill.beneficiaryIds = _beneficiaryIds;
+
+        allWillOwners.push(msg.sender);
+
+        emit WillCreated(msg.sender, _nid, _name);
+    }
+
+    function updateWillStatus(
+        string memory _deathDate,
+        bool _lifeStatus
+    ) public {
+        Will storage existingWill = willOwners[msg.sender];
+        require(bytes(existingWill.name).length > 0, "Will does not exist");
+
+        existingWill.deathDate = _deathDate;
+        existingWill.lifeStatus = _lifeStatus;
+
+        emit WillUpdated(msg.sender, existingWill.nid, _lifeStatus, _deathDate);
+    }
+
+    function registerReceiver(
+        string memory _nid,
+        string memory _fatherNid
+    ) public {
+        require(bytes(_nid).length > 0, "NID is required");
+        require(bytes(_fatherNid).length > 0, "Father NID is required");
+
+        Receiver storage newReceiver = willReceivers[msg.sender];
+        newReceiver.nid = _nid;
+        newReceiver.fatherNid = _fatherNid;
+
+        emit ReceiverRegistered(msg.sender, _nid, _fatherNid);
+    }
+
+    function getWillByFatherNid(string memory _fatherNid, string memory _receiverNid) public view returns (Will memory) {
+        for (uint i = 0; i < allWillOwners.length; i++) {
+            Will memory will = willOwners[allWillOwners[i]];
+            if (keccak256(abi.encodePacked(will.nid)) == keccak256(abi.encodePacked(_fatherNid))) {
+                for (uint j = 0; j < will.beneficiaryIds.length; j++) {
+                    Receiver memory receiver = willReceivers[will.beneficiaryIds[j]];
+                    if (keccak256(abi.encodePacked(receiver.nid)) == keccak256(abi.encodePacked(_receiverNid))) {
+                        return will;
+                    }
+                }
+            }
+        }
+        revert("No will found for this NID");
+    }
+}
