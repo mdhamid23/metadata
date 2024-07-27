@@ -1,0 +1,31 @@
+{
+    "name": "Will Document",
+    "description": "A document outlining the last will and testament of an individual.",
+    "attributes": [
+      {
+        "trait_type": "Name",
+        "value": "John Doe"
+      },
+      {
+        "trait_type": "Birth Date",
+        "value": "01-01-1970"
+      },
+      {
+        "trait_type": "NID",
+        "value": "123456789"
+      },
+      {
+        "trait_type": "Will Information",
+        "value": "This is the will information."
+      },
+      {
+        "trait_type": "Life Status",
+        "value": "Alive"
+      },
+      {
+        "trait_type": "Beneficiaries",
+        "value": ["0x1234...abcd", "0x5678...efgh"]
+      }
+    ]
+  }
+  
