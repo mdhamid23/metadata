@@ -14,7 +14,7 @@ contract WillContract is ERC1155, Ownable, ERC1155Supply {
         string nid;
         string willInfo;
         bool lifeStatus;
-        address[] beneficiaryIds;
+        string[] beneficiaryIds;
     }
 
     struct Receiver {
@@ -50,7 +50,7 @@ contract WillContract is ERC1155, Ownable, ERC1155Supply {
         string memory _birthDate,
         string memory _nid,
         string memory _willInfo,
-        address[] memory _beneficiaryIds
+        string[] memory _beneficiaryIds
     ) public {
         require(bytes(_name).length > 0, "Name is required");
         require(bytes(_birthDate).length > 0, "Birth date is required");
@@ -63,7 +63,7 @@ contract WillContract is ERC1155, Ownable, ERC1155Supply {
         newWill.birthDate = _birthDate;
         newWill.nid = _nid;
         newWill.willInfo = _willInfo;
-        newWill.lifeStatus = true;
+        newWill.lifeStatus = true;  // Default life status to true
         newWill.beneficiaryIds = _beneficiaryIds;
 
         allWillOwners.push(msg.sender);
@@ -72,16 +72,22 @@ contract WillContract is ERC1155, Ownable, ERC1155Supply {
     }
 
     function updateWillStatus(
+        string memory _ownerNid,
         string memory _deathDate,
         bool _lifeStatus
     ) public {
-        Will storage existingWill = willOwners[msg.sender];
-        require(bytes(existingWill.name).length > 0, "Will does not exist");
+        for (uint i = 0; i < allWillOwners.length; i++) {
+            address owner = allWillOwners[i];
+            Will storage existingWill = willOwners[owner];
+            if (keccak256(abi.encodePacked(existingWill.nid)) == keccak256(abi.encodePacked(_ownerNid))) {
+                existingWill.deathDate = _deathDate;
+                existingWill.lifeStatus = _lifeStatus;
 
-        existingWill.deathDate = _deathDate;
-        existingWill.lifeStatus = _lifeStatus;
-
-        emit WillUpdated(msg.sender, existingWill.nid, _lifeStatus, _deathDate);
+                emit WillUpdated(owner, existingWill.nid, _lifeStatus, _deathDate);
+                return;
+            }
+        }
+        revert("Will not found for the provided NID");
     }
 
     function registerReceiver(
@@ -102,9 +108,11 @@ contract WillContract is ERC1155, Ownable, ERC1155Supply {
         for (uint i = 0; i < allWillOwners.length; i++) {
             Will memory will = willOwners[allWillOwners[i]];
             if (keccak256(abi.encodePacked(will.nid)) == keccak256(abi.encodePacked(_fatherNid))) {
+                if (will.lifeStatus) {
+                    revert("You can only access this will after your father's death.");
+                }
                 for (uint j = 0; j < will.beneficiaryIds.length; j++) {
-                    Receiver memory receiver = willReceivers[will.beneficiaryIds[j]];
-                    if (keccak256(abi.encodePacked(receiver.nid)) == keccak256(abi.encodePacked(_receiverNid))) {
+                    if (keccak256(abi.encodePacked(will.beneficiaryIds[j])) == keccak256(abi.encodePacked(_receiverNid))) {
                         return will;
                     }
                 }
